@@ -1,0 +1,66 @@
+function [trl_dat] = make_SUA_trials(params, spike, newMTrl)
+
+
+[TimeStampPerSample] = 1/32e3*1e6;
+
+Fs   = 32e3;
+pre  =  Fs*3;
+post =  Fs*3;
+  
+u = spike.unit{1};
+
+
+fts = AllMicro.Session{1,1}.cfg.previous.previous.previous.previous.previous.trl;
+
+ts = spike.timestamp{1} - spkdef(1,1);
+
+spkdef = fts(:,1:3) * TimeStampPerSample;
+
+spkdef(:,4) = fts(:,4);
+
+dum = spike
+for jk = 1:length(dum.timestamp)
+    dum.timestamp{1,jk} = (dum.timestamp{1,jk}  -  SPKTime(1,1));
+end
+
+cfg = [];
+cfg.trl = spkdef;
+cfg.trlunit = 'timestamps';
+cfg.timestampspersecond = TimeStampPerSample * Fs;
+
+[SPKTrial] = ft_spike_maketrials(cfg,spike);
+
+%%
+for it = 1:length(picon)
+    
+    x = ts - int64(picon(it));
+    x = double(x).*1e-6;
+    
+    sel = [];
+    sel = find(x>=-params.pre & x <=params.post);
+    
+    if ~isempty(sel)
+        trial     = [trial it*ones(1,length(sel))];
+        time      = [time x(sel)];
+        timestamp = [timestamp ts(sel)];
+        unit      = [unit u(sel)];
+        
+        if length(sel)>1
+            waveform = [waveform;squeeze(spike.waveform{1}(:,:,sel))'];
+        else
+            waveform = [waveform;squeeze(spike.waveform{1}(:,:,sel))];
+        end;
+    end;
+    sel = [];
+end;
+waveform = waveform';
+
+trialtime = [-params.pre*ones(length(picon),1) params.post*ones(length(picon),1)];
+
+%%
+trl_dat.trial       = trial;
+trl_dat.time        = time;
+trl_dat.timestamp   = timestamp;
+trl_dat.trialtime   = trialtime;
+trl_dat.unit        = unit;
+trl_dat.waveform    = waveform;
